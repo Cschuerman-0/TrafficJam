@@ -8,7 +8,10 @@ class TrafficLight:
         self.yellow_duration = yellow_duration
         self.red_duration = red_duration
         self.state = state # Initial state
-        self.timer = 0
+        self.timer = 0.0
+        self.radius = 0
+        self.x = position[0]
+        self.y = position[1]
 
     def update(self, dt):
         self.timer += dt
