@@ -6,6 +6,7 @@ from traffic_light import TrafficLight
 
 
 from pygame.math import Vector2
+import cv2
 UP = Vector2(0, -1)
 STOP = Vector2(0, 0)
 from utils import load_sprite
@@ -61,7 +62,7 @@ class Vehicle(GameObject):
         
         self.acceleration = 0.1
         self.distance = 0
-        self.sprite = transform.rotozoom(load_sprite("carRIGHT", True), 0, 0.5)
+        self.sprite = transform.rotozoom(load_sprite("carRight", True), 0, 0.35)
         self.speed = 0.02
         self.maxSpeed = 0.2  # meters per second
         self.turnSpeed = 0.5
@@ -73,16 +74,16 @@ class Vehicle(GameObject):
         super().__init__(self.position, self.sprite, Vector2(0))
         if self.direction == (0, 1):
             self.angle = -90
-            self.sprite = transform.rotozoom(load_sprite("carDOWN", True), 0, 0.5)
+            self.sprite = transform.rotozoom(load_sprite("carDOWN", True), 0, 0.35)
         if self.direction == (0, -1):
             self.angle = 90
-            self.sprite = transform.rotozoom(load_sprite("carUP", True), 0, 0.5)
+            self.sprite = transform.rotozoom(load_sprite("carUP", True), 0, 0.35)
         if self.direction == (1, 0):
             self.angle = 0
-            self.sprite = transform.rotozoom(load_sprite("carRIGHT", True), 0, 0.5)
+            self.sprite = transform.rotozoom(load_sprite("carRIGHT", True), 0, 0.35)
         if self.direction == (-1, 0):
             self.angle = 180
-            self.sprite = transform.rotozoom(load_sprite("carLEFT", True), 0, 0.5)
+            self.sprite = transform.rotozoom(load_sprite("carLEFT", True), 0, 0.35)
     
     def accelerate(self):
         

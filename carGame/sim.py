@@ -14,8 +14,21 @@ class Simulation:
     def __init__(self):
         random.seed(42)
         self.__init_pygame()
-        self.screen = pygame.display.set_mode((800, 800))
-        self.background = load_sprite("intersection", False)
+        self.screen = pygame.display.set_mode((630, 630))
+        self.screen.fill("white")
+        #self.background.copy(self.screen.get_size())
+        self.polygonPoints = [ (7*30, 11*30), (0, 11*30), (0, 13*30), (7*30, 13*30), 
+                              (8*30, 14*30), (8*30, 21*30), (10*30, 21*30), (10*30, 14*30), 
+                              (11*30, 14*30), (11*30, 21*30), (13*30, 21*30), (13*30, 14*30), 
+                              (14*30, 13*30), (21*30, 13*30), (21*30, 11*30), (14*30, 11*30),
+                              (14*30, 10*30), (21*30, 10*30), (21*30, 8*30), (14*30, 8*30), 
+                              (13*30, 7*30), (13*30, 0*30), (11*30, 0*30), (11*30, 7*30),
+                              (10*30, 7*30), (10*30, 0*30), (8*30, 0*30), (8*30, 7*30), 
+                              (7*30, 8*30), (0*30, 8*30), (0, 10*30), (7*30, 10*30)]
+        pygame.draw.polygon(self.screen, (255, 0, 0), self.polygonPoints, 0)
+        #self.polygon = pygame.Surface(self.screen.get_size())
+        self.background = pygame.Surface(self.screen.get_size())
+        #self.background = load_sprite("intersection", False)
         self.clock = pygame.time.Clock()
         self.clock.tick(60)
         #self.vehicle = Vehicle()
@@ -73,8 +86,8 @@ class Simulation:
             self._handle_input()
             self._process_game_logic()
             self.draw()
-            if self.clock.get_time() % 4 == 1:
-                self.message()
+            #if self.clock.get_time() % 4 == 1:
+                #self.message()
             dt = self.clock.tick() / 100
             #self.message()
     def message(self):
@@ -137,6 +150,9 @@ class Simulation:
     
     def draw(self):
         self.screen.blit(self.background, (0, 0))
+        self.screen.fill("lightGreen")
+        pygame.draw.polygon(self.screen, "lightgray", self.polygonPoints, 0)
+        pygame.draw.lines(self.screen, "yellow", True, self.polygonPoints, 3)
         for traffic_light in self.trafficLights:
             traffic_light.draw(self.screen)
         for vehicle in self.vehicles:
