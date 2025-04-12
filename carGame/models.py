@@ -1,5 +1,5 @@
 import time
-import math 
+import math, pygame 
 import pygame.transform as transform
 from utils import load_sprite
 from traffic_light import TrafficLight
@@ -18,6 +18,7 @@ class GameObject:
         self.sprite = sprite
         self.radius = sprite.get_width() / 2
         self.velocity = Vector2(velocity)
+        
     
     def draw(self, surface):
         blit_position = self.position - Vector2(self.radius)
@@ -27,42 +28,42 @@ class GameObject:
         self.position = self.position + self.velocity, surface
 
     def collides_with(self, other_obj):
-        distance = self.position.distance_to(other_obj.position)
+        distance = Vector2(self.position).distance_to(other_obj.position)
         return distance < self.radius + other_obj.radius
+
     
 class Vehicle(GameObject):
-    def __init__(self, road, roadI, goal, leftTurns):
-        self.Initposition = Vector2(road[0])
+    def __init__(self, path, I, paths, lane):
+        self.Initposition = Vector2(path.nodes[0])
         self.position = Vector2(self.Initposition)
-        self.stopLine = Vector2(road[1])
+        self.stopLine = Vector2(path.nodes[1])
         self.turn = 0
-        self.road = road
-        self.roadI = roadI
-        if road[5] == 1:
-            self.turn = 1
-       # if goal == 1:
-            # self.turn = -1
-            # if self.roadI == 0:
-            #     self.road = leftTurns[0]
-            # elif self.roadI == 2:
-            #     self.road= leftTurns[1]
-            # elif self.roadI == 5:
-            #     self.road = leftTurns[2]
-            # elif self.roadI == 6:
-            #     self.road= leftTurns[3]
-
-        self.goal = Vector2(self.road[2])
-        self.endLine = Vector2(self.road[3])
-        self.direction = Vector2(self.road[4])
-        # self.radius
-        self.I = roadI
+        self.rect = pygame.Rect(self.position.x, self.position.y, 30, 30)
+        self.path = path
+        self.pathI = I        
+        self.lane = lane
+        self.goal = path.nodes[-2] ## The goal is the second to last node in the path, essentially the stop line at the other side of the intersection
+        self.node = path.nodes[0] ## The first node in the path 
+        self.I = self.pathI
         self.pastSL = False
         self.pastGL = False
-        
-        
+        self.direction = Vector2(path.direction)
+        self.position = Vector2(path.nodes[0])
         self.acceleration = 0.1
         self.distance = 0
         self.sprite = transform.rotozoom(load_sprite("carRight", True), 0, 0.35)
+
+        ## Set the stop line based on the direction
+        if self.direction == (1, 0):
+            self.stopLine = Vector2(7*30, self.position.y)
+        elif self.direction == (-1, 0):
+            self.stopLine = Vector2(14*30, self.position.y)
+        elif self.direction == (0, 1):
+            self.stopLine = Vector2(self.position.x, 7*30)
+        elif self.direction == (0, -1):
+            self.stopLine = Vector2(self.position.x, 14*30)
+
+        self.distToSL = self.distToSL()
         self.speed = 0.02
         self.maxSpeed = 0.2  # meters per second
         self.turnSpeed = 0.5
@@ -84,7 +85,11 @@ class Vehicle(GameObject):
         if self.direction == (-1, 0):
             self.angle = 180
             self.sprite = transform.rotozoom(load_sprite("carLEFT", True), 0, 0.35)
-    
+    def on_click(self):
+        # Handle click event on the vehicle
+        print("Vehicle clicked!")
+        print(f"Position: {self.position}, Speed: {self.speed}, Direction: {self.direction}, path: {self.path.name}")
+        # You can add more functionality here, like showing details or changing color
     def accelerate(self):
         
         if self.speed + self.accel >= self.maxSpeed:
@@ -104,36 +109,21 @@ class Vehicle(GameObject):
     def explode(self, other):
         pass
 
-    def decelerateTo(self, other, dist):
-        if self.collides_with(other):
-            self.speed = 0
-            self.velocity = self.direction * self.speed
-        if self.speed - self.accel <= 0:
-            self.speed = 0
-            self.velocity = self.direction * self.speed
-            return
-        if self.direction == (0, 1) or self.direction == (0, -1):
-            if self.direction.y * (other.position.y - self.position.y) > dist:
-                self.speed = self.maxSpeed/2
-        if self.direction == (1, 0) or self.direction == (-1, 0):
-            if self.direction.x * (other.position.x - self.position.x ) <= dist:
-                self.speed = 0
-        self.velocity = self.direction * 0
     def updateSprite(self):
         if self.direction == (0, 1):
             self.angle = -90
-            self.sprite = transform.rotozoom(load_sprite("carDOWN", True), 0, 0.5)
+            self.sprite = transform.rotozoom(load_sprite("carDOWN", True), 0, 0.35)
         elif self.direction == (0, -1):
             self.angle = 90
-            self.sprite = transform.rotozoom(load_sprite("carUP", True), 0, 0.5)
+            self.sprite = transform.rotozoom(load_sprite("carUP", True), 0, 0.35)
         elif self.direction == (1, 0):
             self.angle = 0
-            self.sprite = transform.rotozoom(load_sprite("carRIGHT", True), 0, 0.5)
+            self.sprite = transform.rotozoom(load_sprite("carRIGHT", True), 0, 0.35)
         elif self.direction == (-1, 0):
             self.angle = 180
-            self.sprite = transform.rotozoom(load_sprite("carLEFT", True), 0, 0.5)
+            self.sprite = transform.rotozoom(load_sprite("carLEFT", True), 0, 0.35)
         else:
-            self.sprite = transform.rotozoom(load_sprite("carRIGHT", True), self.angle, 0.5)
+            self.sprite = transform.rotozoom(load_sprite("carRIGHT", True), self.angle, 0.35)
     def draw(self, surface):
         
         rotated_surface = self.sprite
@@ -142,77 +132,41 @@ class Vehicle(GameObject):
         surface.blit(rotated_surface, blit_position)
 
     def isPathClear(self, vehicles):
-        if self.turn != -1:
-            return True
-            
-        # Define more focused danger zones based on direction
-        if self.roadI == 0:  # Coming from left
-            danger_x = range(350, 485)
-            danger_y = range(350, 435)
-        elif self.roadI == 2:  # Coming from bottom
-            danger_x = range(435, 485)
-            danger_y = range(350, 450)
-        elif self.roadI == 5:  # Coming from right
-            danger_x = range(350, 485)
-            danger_y = range(360, 450)
-        elif self.roadI == 6:  # Coming from top
-            danger_x = range(330, 435)
-            danger_y = range(350, 450)
-        else:
-            return True
+        #make lasers to check for other vehicles past the stop line and not past their goal line
+        pass
 
-        # Only check straight-going traffic in opposing directions
-        for vehicle in vehicles:
-            if vehicle != self and vehicle.turn == 0:  # Only check non-turning vehicles
-                if ((self.roadI == 0 and vehicle.roadI == 5) or
-                    (self.roadI == 2 and vehicle.roadI == 6) or
-                    (self.roadI == 5 and vehicle.roadI == 0) or
-                    (self.roadI == 6 and vehicle.roadI == 2)):
-                    if (int(vehicle.position.x) in danger_x and 
-                        int(vehicle.position.y) in danger_y):
-                        return False
-                    # Check if vehicle is approaching intersection
-                    if not vehicle.pastSL and vehicle.distToSL() and vehicle.distToSL() < 30:
-                        return False
-        return True
-
-    def update(self, vehicles, trafficLights, crossing):
+    def update(self, vehicles, trafficLights):
         # Check for traffic lights and vehicle collisions
-        if self.distToSL() and self.distToSL() <= 4:
-            self.pastSL = True
-        for vehicle in vehicles:
-            if vehicle.I == self.I and vehicle != self:
-                dist = self.distToOther(vehicle)
-                if dist is None or dist < 0:
-                    continue
-                if dist < 100 + self.radius:
-                   self.speed = self.maxSpeed/2
-                if dist < 25 + self.radius:
-                    self.speed = 0
-                    self.velocity = self.direction * self.speed
-                    return
         self.position += self.direction * self.speed
-        trafficLight = trafficLights[self.I]
-        if(self.pastSL and self.turn == 0):
-            self.accelerate()
-            return
+        for node in self.path.path:
+            if self.collides_with(node):
+                self.node = self.path.nodes[self.path.nodes.index(node)+1]
+                direction_to_node = (self.node - self.position).normalize()
+                self.direction = direction_to_node
+                self.angle = self.angleTo(self.node.position)
+                break
         
-        if self.distToSL() and self.distToSL() <= 2:
-            self.pastSL = True
-        elif self.distToSL() and self.distToSL() > 20:
-            self.accelerate()
-            return
-        if self.distToSL() < 20 and trafficLight.state == "green" and not self.pastSL:
-            self.accelerate()
-            return
         
-
-        if(not self.pastSL and trafficLight.state == "green"):
-            self.accelerate()
-        elif self.distToSL() < 20 and trafficLight.state == "red" and not self.pastSL:
-                self.decelerateTo(trafficLight, 5)
-                return
-        self.updateSprite()
+        # self.distToSLVal = self.distToSL(self)
+        # self.distToGLVal = self.distToGL(self)
+        
+        if not self.pastSL:
+            for trafficLight in trafficLights:
+                if self.collides_with(trafficLight) and trafficLight.state == "green":
+                    self.pastSL = True
+                #also need to let cars taking a right turn go if the light is red, avoiding collisions
+                if self.collides_with(trafficLight) and trafficLight.state == "red" and self.I%3 == 2:
+                    self.pastSL = True
+            if trafficLights[self.lane].state == "green":
+                self.accelerate()
+            elif trafficLights[self.lane].state == "red":
+                for vehicle in vehicles:
+                    if self.collides_with(vehicle):
+                        self.decelerate()
+                        self.speed = 0
+                        self.updateSprite()
+                        return
+        
         # Handle cars that need to turn
         if self.turn != 0 and self.pastSL:
             if not self.pastGL:  # Move from stop line to goal line
@@ -290,25 +244,33 @@ class Vehicle(GameObject):
 
     def distToSL(self):
         # Check if the vehicle is near a traffic light
-        if self.direction == (1, 0) or self.direction == (-1, 0):
-            return self.direction[0] * (self.stopLine.x - self.position.x)
-        elif self.direction == (0, 1) or self.direction == (0, -1):
-            return self.direction[1] * (self.stopLine.y - self.position.y)
-        return 0
+    
+        if self.pastSL or self.pastGL:
+            return -1
+        else:
+            if self.direction == (1, 0):
+                self.stopLine = Vector2(7*30, self.position.y)
+                return 7*30 - self.position.x
+            elif self.direction == (-1, 0):
+                self.stopLine = Vector2(14*30, self.position.y)
+                return self.position.x - 14*30
+            elif self.direction == (0, 1):
+                self.stopLine = Vector2(self.position.x, 7*30)
+            elif self.direction == (0, -1):
+                self.stopLine = Vector2(self.position.x, 14*30)
+                return self.direction[1] * (self.stopLine.y - self.position.y)
+        return -1
         
     def distToGL(self):
-        #check if vehicle is past goal line
-        if self.position.distance_to(self.goal) <= 2:
-            self.direction = self.goalDir
-            self.turn = False
         return self.position.distance_to(self.goal)
 
 class carPortal(GameObject):
     def __init__(self, position):
         self.position = position
-        self.timer = 0
-        self.spawnRate = 1
-        self.spawnLimit = 6
-        self.spawned = 0
-        self.spawnedCars = []
+        self.radius = 10
 
+    def spawnCheck(self, vehicles):
+        for vehicle in vehicles:
+            if self.collides_with(vehicle):
+                return False
+        return True
